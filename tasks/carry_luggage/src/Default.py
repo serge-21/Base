@@ -7,7 +7,6 @@ from tf_module.srv import TfTransform
 from tiago_controllers.controllers import Controllers
 from lasr_voice.voice import Voice
 
-
 class Default:
     def __init__(self):
         self.detect_service = rospy.ServiceProxy('/yolov8/detect', YoloDetection)
