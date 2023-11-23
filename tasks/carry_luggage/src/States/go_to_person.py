@@ -13,24 +13,27 @@ class GoToPerson(smach.State):
         smach.State.__init__(self, outcomes=['succeeded', 'failed'],
                              input_keys=['coords'])
 
+        self.header = None
         self.default = default
-        self.depth = rospy.wait_for_message("/xtion/depth_registered/points", PointCloud2)
 
     def execute(self, userdata):
         cords = self.estimate_person_coords(userdata.coords)
         pose = self.estimate_pose(cords)
-        self.default.base_controller.sync_to_pose(pose)
 
+        self.default.base_controller.sync_to_pose(pose)
         self.default.voice.speak("I am here please give me hug?")
         
         return "succeeded"
 
     def estimate_person_coords(self, cords_of_person):
+        depth = rospy.wait_for_message("/xtion/depth_registered/points", PointCloud2)
+        self.header = depth.header
+
        # Check if depth information is available
-        if self.depth is not None:
+        if depth is not None:
             try:
                 # Convert PointCloud2 message to a numpy array
-                depth_data = point_cloud2.read_points(self.depth, field_names=("x", "y", "z"), skip_nans=True)
+                depth_data = point_cloud2.read_points(depth, field_names=("x", "y", "z"), skip_nans=True)
                 depth_array = np.array(list(depth_data))
 
                 # Extract depth values for the coordinates of the person
@@ -54,16 +57,12 @@ class GoToPerson(smach.State):
             except Exception as e:
                 rospy.logerr("Error in estimating depth: {}".format(str(e)))
 
-        else:
-            rospy.logwarn("Depth information not available.")
-            return None
-
     def estimate_pose(self, person_cords):
         x, y, z = person_cords
-        centroid = PointStamped()
 
+        centroid = PointStamped()
         centroid.point = Point(x, y, z)
-        centroid.header = self.depth.header
+        centroid.header = self.header
         
         tf_req = TfTransformRequest()
         tf_req.target_frame = String("map")
