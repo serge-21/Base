@@ -11,5 +11,5 @@ class CarryLuggage(smach.StateMachine):
         self.default = Default()
 
         with self:
-            smach.StateMachine.add('START', LookForPeople(self.default), transitions={'succeeded' : 'GO_TO_PERSON', 'look_for_people' : 'START'})
+            smach.StateMachine.add('START', LookForPeople(self.default), transitions={'succeeded' : 'GO_TO_PERSON'})
             smach.StateMachine.add('GO_TO_PERSON', GoToPerson(self.default), transitions={'succeeded' : 'succeeded',  'failed' : 'failed'})
