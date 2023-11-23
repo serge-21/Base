@@ -33,7 +33,7 @@ class LookForPeople(smach.State):
         request.image_raw = msg                # sensor_msgs/Image
         request.dataset = "yolov8n-seg.pt"     # YOLOv8 model, auto-downloads
         request.confidence = 0.7               # minimum confidence to include in results
-        request.nms = 0.0                      # non maximal supression
+        request.nms = 0.4                      # non maximal supression
 
         # send request
         response = self.default.detect_service(request)
