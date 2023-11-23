@@ -12,12 +12,10 @@
     <arg name="base_type"    default="omni"/>
     <arg name="map"          default="~/.pal/tiago_maps/configurations/2023-11-16_173326"/>
 
-    <!-- LASR packages to control tiago -->
     <node pkg="tf_module" name="tf_transforms_base" type="tf_transforms_base.py" required="true"/>
     <node pkg="lasr_vision_yolov8" name="service" type="service" output="screen"/>
     <node pkg="carry_luggage" name="go_to_person" type="main.py" output="screen"/>
 
-    <!-- gazebo -->
     <include file="$(find tiago_2dnav_gazebo)/launch/tiago_navigation.launch">
         <arg name="public_sim" value="$(arg public_sim)"/>
     </include>
