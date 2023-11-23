@@ -2,6 +2,7 @@
 
 import rospy
 import numpy as np
+from Default import Default
 
 from geometry_msgs.msg import Pose, PointStamped, Point
 from sensor_msgs import point_cloud2
@@ -14,15 +15,9 @@ from tiago_controllers.controllers import Controllers
 
 class Main:
     def __init__(self):
-        self.detect_service = rospy.ServiceProxy('/yolov8/detect', YoloDetection)
-        self.detect_service.wait_for_service()
-        self.tf_service = rospy.ServiceProxy('tf_transform', TfTransform)
-        self.tf_service.wait_for_service()
-
-        self.baseController = Controllers().base_controller
+        self.default = Default()
 
         self.depth = None
-        self.initial_pose = self.baseController.get_current_pose()
         self.cam_subs = rospy.Subscriber("/xtion/rgb/image_raw", Image, self.request_test)
         self.depth_subs = rospy.Subscriber("/xtion/depth_registered/points", PointCloud2, self.do_nothing)
 
@@ -73,7 +68,7 @@ class Main:
         tf_req.target_frame = String("map")
         tf_req.point = centroid
         
-        response = self.tf_service(tf_req)
+        response = self.default.tf_service(tf_req)
         
         target_pose = Pose()
         target_pose.position.x = response.target_point.point.x
@@ -93,7 +88,7 @@ class Main:
         request.nms = 0.0                      # non maximal supression
 
         # send request
-        response = self.detect_service(request)
+        response = self.default.detect_service(request)
         
         for detection in response.detected_objects:
             if detection.name == "person":
@@ -104,10 +99,9 @@ class Main:
                 person_cords = self.estimate_person_coords(cords_of_person)
                 pose = self.estimate_pose(person_cords)
 
-                rospy.loginfo("initial pose: {}".format(self.initial_pose))
                 rospy.loginfo("pose of person: {}".format(pose))
                 
-                self.baseController.sync_to_pose(pose)
+                self.default.base_controller.sync_to_pose(pose)
 
 if __name__ == '__main__':
     rospy.init_node('go_to_person')
