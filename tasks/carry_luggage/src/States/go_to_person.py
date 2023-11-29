@@ -91,13 +91,13 @@ class GoToPerson(smach.State):
     def estimate_pose(self, person_cords):
         x, y, z = person_cords
 
-        centroid = PointStamped()
-        centroid.point = Point(x, y, z)
-        centroid.header = self.header
+        point = PointStamped()
+        point.point = Point(x, y, z)
+        point.header = self.header
         
         tf_req = TfTransformRequest()
         tf_req.target_frame = String("map")
-        tf_req.point = centroid
+        tf_req.point = point
         
         response = self.default.tf_service(tf_req)
         
