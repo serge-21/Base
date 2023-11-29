@@ -17,3 +17,5 @@ class Default:
         self.initial_pose = self.controllers.base_controller.get_current_pose()
         self.voice = Voice()
         rospy.set_param('/is_simulation', False)
+        
+        self.last_person_pose = None
