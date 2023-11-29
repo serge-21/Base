@@ -2,12 +2,12 @@ import smach
 import rospy
 
 from lasr_vision_msgs.srv import YoloDetectionRequest
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, PointCloud2
 
 class LookForPeople(smach.State):
     def __init__(self, default):
         smach.State.__init__(self, outcomes=['succeeded'],
-                             output_keys=['coords'])
+                             output_keys=['coords', 'pcl'])
         self.default = default
         self.motion = [
             self.default.controllers.head_controller.look_right,
@@ -43,6 +43,7 @@ class LookForPeople(smach.State):
 
                 # cords of person in image
                 userdata.coords = detection.xyseg
+                userdata.pcl = rospy.wait_for_message('/xtion/depth_registered/points', PointCloud2)
                 return True
         
         return False
