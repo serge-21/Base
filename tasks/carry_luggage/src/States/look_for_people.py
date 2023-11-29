@@ -8,12 +8,12 @@ class LookForPeople(smach.State):
     def __init__(self, default):
         smach.State.__init__(self, outcomes=['succeeded'],
                              output_keys=['coords', 'pcl'])
-        self.default = default
+        self.robot = default
         self.motion = [
-            self.default.controllers.head_controller.look_right,
-            self.default.controllers.head_controller.look_straight,
-            self.default.controllers.head_controller.look_left,
-            self.default.controllers.head_controller.look_straight
+            self.robot.controllers.head_controller.look_right,
+            self.robot.controllers.head_controller.look_straight,
+            self.robot.controllers.head_controller.look_left,
+            self.robot.controllers.head_controller.look_straight
         ]
         self.current_motion = 0
 
@@ -36,10 +36,10 @@ class LookForPeople(smach.State):
         request.nms = 0.4                      # non maximal supression
 
         # send request
-        response = self.default.detect_service(request)
+        response = self.robot.detect_service(request)
         for detection in response.detected_objects:
             if detection.name == "person":
-                self.default.voice.speak("I see a person")
+                self.robot.voice.speak("I see a person")
 
                 # cords of person in image
                 userdata.coords = detection.xyseg

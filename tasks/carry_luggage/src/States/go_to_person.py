@@ -14,33 +14,33 @@ class GoToPerson(smach.State):
                              input_keys=['coords', 'pcl'])
 
         self.header = None
-        self.default = default
+        self.robot = default
 
     def execute(self, userdata):
         cords = self.estimate_person_coords(userdata.coords, userdata.pcl)        
         pose = self.estimate_pose(cords)
 
-        if pose != self.default.last_person_pose:
-            self.default.last_person_pose = pose
+        if pose != self.robot.last_person_pose:
+            self.robot.last_person_pose = pose
             print("Person pose: {}".format(pose))
 
             # new_cords = self.calculate_point_along_line(pose)
             # pose.position.x, pose.position.y = new_cords
-            self.default.base_controller.sync_to_pose(pose)
+            self.robot.base_controller.sync_to_pose(pose)
             
         return "succeeded"
     
     def calculate_speed_of_person(self, pose):
         speed = 0.0
-        if self.default.last_person_pose:
+        if self.robot.last_person_pose:
             x_curr, y_curr = pose.position.x, pose.position.y
-            x_prev, y_prev = self.default.last_person_pose.position.x, self.default.last_person_pose.position.y
+            x_prev, y_prev = self.robot.last_person_pose.position.x, self.robot.last_person_pose.position.y
             speed = np.sqrt((x_curr - x_prev)**2 + (y_curr - y_prev)**2)
 
         return speed
 
     def calculate_point_along_line(self, person_pose, speed_threshold=0.2):
-        x0, y0, _ = self.default.base_controller.get_current_pose()
+        x0, y0, _ = self.robot.base_controller.get_current_pose()
         x_person, y_person = person_pose.position.x, person_pose.position.y
 
         speed = self.calculate_speed_of_person(person_pose)
@@ -99,7 +99,7 @@ class GoToPerson(smach.State):
         tf_req.target_frame = String("map")
         tf_req.point = point
         
-        response = self.default.tf_service(tf_req)
+        response = self.robot.tf_service(tf_req)
         
         target_pose = Pose()
         target_pose.position.x = response.target_point.point.x
