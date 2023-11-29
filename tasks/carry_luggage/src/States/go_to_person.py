@@ -11,21 +11,52 @@ from tf_module.srv import TfTransformRequest
 class GoToPerson(smach.State):
     def __init__(self, default):
         smach.State.__init__(self, outcomes=['succeeded', 'failed'],
-                             input_keys=['coords'])
+                             input_keys=['coords', 'pcl'])
 
         self.header = None
         self.default = default
 
     def execute(self, userdata):
-        cords = self.estimate_person_coords(userdata.coords)
+        cords = self.estimate_person_coords(userdata.coords, userdata.pcl)        
         pose = self.estimate_pose(cords)
 
-        self.default.base_controller.sync_to_pose(pose)
-        self.default.voice.speak("I am here please give me hug?")
-        
-        return "succeeded"
+        if pose != self.default.last_person_pose:
+            self.default.last_person_pose = pose
+            print("Person pose: {}".format(pose))
 
-    def estimate_person_coords(self, cords_of_person):
+            # new_cords = self.calculate_point_along_line(pose)
+            # pose.position.x, pose.position.y = new_cords
+            self.default.base_controller.sync_to_pose(pose)
+            
+        return "succeeded"
+    
+    def calculate_speed_of_person(self, pose):
+        speed = 0.0
+        if self.default.last_person_pose:
+            x_curr, y_curr = pose.position.x, pose.position.y
+            x_prev, y_prev = self.default.last_person_pose.position.x, self.default.last_person_pose.position.y
+            speed = np.sqrt((x_curr - x_prev)**2 + (y_curr - y_prev)**2)
+
+        return speed
+
+    def calculate_point_along_line(self, person_pose, speed_threshold=0.2):
+        x0, y0, _ = self.default.base_controller.get_current_pose()
+        x_person, y_person = person_pose.position.x, person_pose.position.y
+
+        speed = self.calculate_speed_of_person(person_pose)
+        distance = 0.3 if speed <= speed_threshold else 0.1
+
+        # Calculate the slope and intercept of the line
+        slope = (y_person - y0) / (x_person - x0)
+
+        # calculate an x and y value that is distance away from the person, along the line, in the direction of the robot
+        angle = np.arctan(slope)
+        x_new = x_person + distance * np.cos(angle)
+        y_new = y_person + distance * np.sin(angle)
+
+        return (x_new, y_new)
+
+    def estimate_person_coords(self, cords_of_person, depth):
         depth = rospy.wait_for_message("/xtion/depth_registered/points", PointCloud2)
         self.header = depth.header
 
