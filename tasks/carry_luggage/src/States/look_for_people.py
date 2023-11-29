@@ -37,7 +37,6 @@ class LookForPeople(smach.State):
 
         # send request
         response = self.default.detect_service(request)
-        print(response)
         for detection in response.detected_objects:
             if detection.name == "person":
                 self.default.voice.speak("I see a person")
