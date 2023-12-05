@@ -22,10 +22,9 @@ class GoToPerson(smach.State):
 
         if pose != self.robot.last_person_pose:
             self.robot.last_person_pose = pose
-            print("Person pose: {}".format(pose))
 
-            # new_cords = self.calculate_point_along_line(pose)
-            # pose.position.x, pose.position.y = new_cords
+            new_cords = self.calculate_point_along_line(pose)
+            pose.position.x, pose.position.y = new_cords
             self.robot.base_controller.sync_to_pose(pose)
             
         return "succeeded"
@@ -44,20 +43,20 @@ class GoToPerson(smach.State):
         x_person, y_person = person_pose.position.x, person_pose.position.y
 
         speed = self.calculate_speed_of_person(person_pose)
-        distance = 0.3 if speed <= speed_threshold else 0.1
+        distance = 1 if speed <= speed_threshold else 0.5
 
         # Calculate the slope and intercept of the line
         slope = (y_person - y0) / (x_person - x0)
 
         # calculate an x and y value that is distance away from the person, along the line, in the direction of the robot
-        angle = np.arctan(slope)
-        x_new = x_person + distance * np.cos(angle)
-        y_new = y_person + distance * np.sin(angle)
+        angle = np.arctan2(y_person - y0, x_person - x0)
+        x_new = x_person - distance * np.cos(angle)
+        y_new = y_person - distance * np.sin(angle)
 
         return (x_new, y_new)
 
     def estimate_person_coords(self, cords_of_person, depth):
-        depth = rospy.wait_for_message("/xtion/depth_registered/points", PointCloud2)
+        # depth = rospy.wait_for_message("/xtion/depth_registered/points", PointCloud2)
         self.header = depth.header
 
        # Check if depth information is available
