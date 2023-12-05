@@ -20,16 +20,17 @@ class LookForPeople(smach.State):
     def execute(self, userdata):
         # if we don't see a person, look around
         while True:
-            self.motion[self.current_motion % len(self.motion)]()
-            self.current_motion += 1
+            # self.motion[self.current_motion % len(self.motion)]()
+            # self.current_motion += 1
 
             if self.detection(userdata):
                 return "succeeded"
 
     def detection(self, userdata):
-        request = YoloDetectionRequest()
         msg = rospy.wait_for_message('/xtion/rgb/image_raw', Image)
+        pcl = rospy.wait_for_message('/xtion/depth_registered/points', PointCloud2)
 
+        request = YoloDetectionRequest()
         request.image_raw = msg                # sensor_msgs/Image
         request.dataset = "yolov8n-seg.pt"     # YOLOv8 model, auto-downloads
         request.confidence = 0.7               # minimum confidence to include in results
@@ -43,7 +44,7 @@ class LookForPeople(smach.State):
 
                 # cords of person in image
                 userdata.coords = detection.xyseg
-                userdata.pcl = rospy.wait_for_message('/xtion/depth_registered/points', PointCloud2)
+                userdata.pcl = pcl
                 return True
         
         return False
