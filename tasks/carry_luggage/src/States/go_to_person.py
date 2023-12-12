@@ -59,7 +59,6 @@ class GoToPerson(smach.State):
     def estimate_person_coords(self, cords_of_person, depth):
         self.header = depth.header
 
-       # Check if depth information is available
         try:
             # Convert PointCloud2 message to a numpy array
             depth_data = point_cloud2.read_points(depth, field_names=("x", "y", "z"), skip_nans=True)
