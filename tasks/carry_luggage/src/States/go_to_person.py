@@ -60,31 +60,30 @@ class GoToPerson(smach.State):
         self.header = depth.header
 
        # Check if depth information is available
-        if depth is not None:
-            try:
-                # Convert PointCloud2 message to a numpy array
-                depth_data = point_cloud2.read_points(depth, field_names=("x", "y", "z"), skip_nans=True)
-                depth_array = np.array(list(depth_data))
+        try:
+            # Convert PointCloud2 message to a numpy array
+            depth_data = point_cloud2.read_points(depth, field_names=("x", "y", "z"), skip_nans=True)
+            depth_array = np.array(list(depth_data))
 
-                # Extract depth values for the coordinates of the person
-                person_depth_values_x = []
-                person_depth_values_y = []
-                person_depth_values_z = []
-                for cord in cords_of_person:
-                    x, y, z = depth_array[cord]
-                    person_depth_values_x.append(x)
-                    person_depth_values_y.append(y)
-                    person_depth_values_z.append(z)
+            # Extract depth values for the coordinates of the person
+            person_depth_values_x = []
+            person_depth_values_y = []
+            person_depth_values_z = []
+            for cord in cords_of_person:
+                x, y, z = depth_array[cord]
+                person_depth_values_x.append(x)
+                person_depth_values_y.append(y)
+                person_depth_values_z.append(z)
 
-                # Calculate the average depth
-                average_depth_x = np.mean(person_depth_values_x)
-                average_depth_y = np.mean(person_depth_values_y)
-                average_depth_z = np.mean(person_depth_values_z)
+            # Calculate the average depth
+            average_depth_x = np.mean(person_depth_values_x)
+            average_depth_y = np.mean(person_depth_values_y)
+            average_depth_z = np.mean(person_depth_values_z)
 
-                return (average_depth_x, average_depth_y, average_depth_z)
+            return (average_depth_x, average_depth_y, average_depth_z)
 
-            except Exception as e:
-                rospy.logerr("Error in estimating depth: {}".format(str(e)))
+        except Exception as e:
+            rospy.logerr("Error in estimating depth: {}".format(str(e)))
 
     def create_pose(self, cords):
         quat = self.robot.base_controller.get_current_pose()[2]
