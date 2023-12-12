@@ -6,25 +6,36 @@ from sensor_msgs.msg import Image, PointCloud2
 
 class LookForPeople(smach.State):
     def __init__(self, default):
-        smach.State.__init__(self, outcomes=['succeeded'],
+        smach.State.__init__(self, outcomes=['succeeded', "failed"],
                              output_keys=['coords', 'pcl'])
         self.robot = default
-        self.motion = [
-            self.robot.controllers.head_controller.look_right,
-            self.robot.controllers.head_controller.look_straight,
-            self.robot.controllers.head_controller.look_left,
-            self.robot.controllers.head_controller.look_straight
-        ]
-        self.current_motion = 0
 
     def execute(self, userdata):
-        # if we don't see a person, look around
         while True:
-            # self.motion[self.current_motion % len(self.motion)]()
-            # self.current_motion += 1
-
             if self.detection(userdata):
                 return "succeeded"
+            else:
+                if self.robot.last_person_pose is not None:
+                    return self.recovery(userdata)
+            
+    def recovery(self, userdata):
+        self.robot.base_controller.sync_to_pose(self.robot.last_person_pose)
+
+        result = self.recovery_lookout(self.robot.controllers.head_controller.look_right, userdata)
+        if result == "succeeded":
+            return result
+        
+        return self.recovery_lookout(self.robot.controllers.head_controller.look_left, userdata)
+    
+    def recovery_lookout(self, look_at, userdata):
+        look_at()
+        
+        result = "failed"
+        if self.detection(userdata):
+            result = "succeeded"
+            
+        self.robot.controllers.head_controller.look_straight()
+        return result
 
     def detection(self, userdata):
         msg = rospy.wait_for_message('/xtion/rgb/image_raw', Image)
