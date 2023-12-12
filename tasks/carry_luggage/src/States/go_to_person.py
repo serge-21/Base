@@ -18,15 +18,12 @@ class GoToPerson(smach.State):
         map_cords = self.robot.translate_coord_to_map(cords, self.header)    
         pose = self.create_pose(map_cords)
 
-        self.robot.last_person_pose = pose
-        self.robot.base_controller.sync_to_pose(pose)
+        if pose != self.robot.last_person_pose:
+            self.robot.last_person_pose = pose
 
-        # if pose != self.robot.last_person_pose:
-        #     self.robot.last_person_pose = pose
-
-        #     new_cords = self.calculate_point_along_line(pose)
-        #     pose.position.x, pose.position.y = new_cords
-        #     self.robot.base_controller.sync_to_pose(pose)
+            new_cords = self.calculate_point_along_line(pose)
+            pose.position.x, pose.position.y = new_cords
+            self.robot.base_controller.sync_to_pose(pose)
             
         return "succeeded"
     
@@ -40,21 +37,25 @@ class GoToPerson(smach.State):
         return speed
 
     def calculate_point_along_line(self, person_pose, speed_threshold=0.2):
-        x0, y0, _ = self.robot.base_controller.get_current_pose()
-        x_person, y_person = person_pose.position.x, person_pose.position.y
+        robot_x, robot_y, _ = self.robot.base_controller.get_current_pose()
+        person_x, person_y = person_pose.position.x, person_pose.position.y
 
         speed = self.calculate_speed_of_person(person_pose)
         distance = 1 if speed <= speed_threshold else 0.5
 
-        # Calculate the slope and intercept of the line
-        slope = (y_person - y0) / (x_person - x0)
+        vector_x = person_x - robot_x
+        vector_y = person_y - robot_y
 
-        # calculate an x and y value that is distance away from the person, along the line, in the direction of the robot
-        angle = np.arctan2(y_person - y0, x_person - x0)
-        x_new = x_person - distance * np.cos(angle)
-        y_new = y_person - distance * np.sin(angle)
+        # Normalise the vector
+        length = np.sqrt(vector_x**2 + vector_y**2)
+        normalised_vector_x = vector_x / length
+        normalised_vector_y = vector_y / length
 
-        return (x_new, y_new)
+        # Calculate the new point that is "distance" meters away from the person along the vector
+        new_point_x = person_x - distance * normalised_vector_x
+        new_point_y = person_y - distance * normalised_vector_y
+
+        return (new_point_x, new_point_y)
 
     def estimate_person_coords(self, cords_of_person, depth):
         self.header = depth.header
