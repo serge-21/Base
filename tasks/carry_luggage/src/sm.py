@@ -2,8 +2,8 @@
 
 import smach
 from Default import Default
-from States.look_for_people import LookForPeople
-from States.go_to_person import GoToPerson
+from States.Follow.look_for_people import LookForPeople
+from States.Follow.go_to_person import GoToPerson
 
 class CarryLuggage(smach.StateMachine):
     def __init__(self):
