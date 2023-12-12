@@ -2,11 +2,8 @@ import rospy
 import smach
 import numpy as np
 
-from geometry_msgs.msg import Pose, PointStamped, Point
+from geometry_msgs.msg import Pose
 from sensor_msgs import point_cloud2
-from std_msgs.msg import String
-from sensor_msgs.msg import PointCloud2
-from tf_module.srv import TfTransformRequest
 
 class GoToPerson(smach.State):
     def __init__(self, default):
@@ -17,15 +14,19 @@ class GoToPerson(smach.State):
         self.robot = default
 
     def execute(self, userdata):
-        cords = self.estimate_person_coords(userdata.coords, userdata.pcl)        
-        pose = self.estimate_pose(cords)
+        cords = self.estimate_person_coords(userdata.coords, userdata.pcl)
+        map_cords = self.robot.translate_coord_to_map(cords, self.header)    
+        pose = self.create_pose(map_cords)
 
-        if pose != self.robot.last_person_pose:
-            self.robot.last_person_pose = pose
+        self.robot.last_person_pose = pose
+        self.robot.base_controller.sync_to_pose(pose)
 
-            new_cords = self.calculate_point_along_line(pose)
-            pose.position.x, pose.position.y = new_cords
-            self.robot.base_controller.sync_to_pose(pose)
+        # if pose != self.robot.last_person_pose:
+        #     self.robot.last_person_pose = pose
+
+        #     new_cords = self.calculate_point_along_line(pose)
+        #     pose.position.x, pose.position.y = new_cords
+        #     self.robot.base_controller.sync_to_pose(pose)
             
         return "succeeded"
     
@@ -56,7 +57,6 @@ class GoToPerson(smach.State):
         return (x_new, y_new)
 
     def estimate_person_coords(self, cords_of_person, depth):
-        # depth = rospy.wait_for_message("/xtion/depth_registered/points", PointCloud2)
         self.header = depth.header
 
        # Check if depth information is available
@@ -81,29 +81,16 @@ class GoToPerson(smach.State):
                 average_depth_y = np.mean(person_depth_values_y)
                 average_depth_z = np.mean(person_depth_values_z)
 
-                rospy.loginfo("Estimated depth of the person: {}".format((average_depth_x, average_depth_y, average_depth_z)))
                 return (average_depth_x, average_depth_y, average_depth_z)
 
             except Exception as e:
                 rospy.logerr("Error in estimating depth: {}".format(str(e)))
 
-    def estimate_pose(self, person_cords):
-        x, y, z = person_cords
+    def create_pose(self, cords):
+        quat = self.robot.base_controller.get_current_pose()[2]
 
-        point = PointStamped()
-        point.point = Point(x, y, z)
-        point.header = self.header
+        pose = Pose()
+        pose.position.x, pose.position.y, pose.position.z = cords
+        pose.orientation.z, pose.orientation.w = quat.z, quat.w
         
-        tf_req = TfTransformRequest()
-        tf_req.target_frame = String("map")
-        tf_req.point = point
-        
-        response = self.robot.tf_service(tf_req)
-        
-        target_pose = Pose()
-        target_pose.position.x = response.target_point.point.x
-        target_pose.position.y = response.target_point.point.y
-        target_pose.position.z = 0.0
-        target_pose.orientation.w = 1.0
-
-        return target_pose
+        return pose
