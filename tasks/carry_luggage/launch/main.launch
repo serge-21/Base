@@ -1,31 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <launch>
 
-    <!-- args -->
-    <arg name="world" default="$(find carry_luggage)/worlds/main_world.world"/>
-    <arg name="public_sim"   default="true"/>
-    <arg name="paused"       default="false"/>
-    <arg name="use_sim_time" default="true"/>
-    <arg name="gui"          default="true"/>
-    <arg name="record"       default="false"/>
-    <arg name="debug"        default="false"/>
-    <arg name="base_type"    default="omni"/>
-    <arg name="map"          default="~/.pal/tiago_maps/configurations/2023-11-16_173326"/>
-
     <node pkg="tf_module" name="tf_transforms_base" type="tf_transforms_base.py" required="true"/>
     <node pkg="lasr_vision_yolov8" name="service" type="service" output="screen"/>
     <node pkg="carry_luggage" name="go_to_person" type="main.py" output="screen"/>
 
-    <include file="$(find tiago_2dnav_gazebo)/launch/tiago_navigation.launch">
-        <arg name="public_sim" value="$(arg public_sim)"/>
-    </include>
 
-   <!-- <include file="$(find gazebo_ros)/launch/empty_world.launch">
-        <arg name="world" value="$(arg world)"/>
-        <arg name="paused" value="$(arg paused)"/>
-        <arg name="use_sim_time" value="$(arg use_sim_time)"/>
-        <arg name="gui" value="$(arg gui)"/>
-        <arg name="recording" value="$(arg record)"/>
-        <arg name="debug" value="$(arg debug)"/>
-    </include>   -->
 </launch>
