@@ -6,7 +6,7 @@ from sensor_msgs.msg import Image, PointCloud2
 
 class LookForPeople(smach.State):
     def __init__(self, default):
-        smach.State.__init__(self, outcomes=['succeeded', "failed"],
+        smach.State.__init__(self, outcomes=['succeeded', 'failed'],
                              output_keys=['coords', 'pcl'])
         self.robot = default
 
