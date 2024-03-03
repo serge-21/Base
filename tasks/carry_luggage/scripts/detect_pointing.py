@@ -3,31 +3,36 @@
 import cv2
 import rospy
 import mediapipe as mp
-from Default import Default
 from sensor_msgs.msg import Image
 from lasr_vision_msgs.srv import YoloDetectionRequest, YoloDetectionResponse, YoloDetection
+from carry_luggage.srv import PointingService, PointingServiceResponse, PointingServiceRequest
 
 '''using this rather than openpose because it is faster and more accurate'''
 class PointingDetecor:
-    def __init__(self, robot):
-        self.robot = robot
-        
+    def __init__(self):
+        self.detect_service = rospy.ServiceProxy('/yolov8/detect', YoloDetection)
+        self.service = rospy.Service('pointing_detection_service', PointingService, self.excute)
+
         # Load MediaPipe Pose model
         self.mp_pose = mp.solutions.pose
         self.pose = self.mp_pose.Pose()
 
     def excute(self):
-        while True:
-            people, img = self.detection()
-            if people:
-                img_width = img.width
-                img_height = img.height
-                for person in people:
-                    keypoints = self.detect_keypoints(img)  # Detect keypoints using MediaPipe
-                    direction = self.determine_pointing_direction(person, img_width, img_height, keypoints)
-                    print("Person detected pointing:", direction)
-                
-                break
+        resp = PointingServiceResponse()
+        people, img = self.detection()
+
+        if people:
+            img_width = img.width
+            img_height = img.height
+            for person in people:
+                keypoints = self.detect_keypoints(img)  # Detect keypoints using MediaPipe
+                direction = self.determine_pointing_direction(person, img_width, img_height, keypoints)
+                print("Person detected pointing:", direction)
+
+                resp.direction = direction
+        
+        resp.direction = "Err"
+        return resp
 
     def detect_keypoints(self, img):
         img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -52,7 +57,7 @@ class PointingDetecor:
         request.nms = 0.4                      # non maximal supression
 
         # send request
-        response = self.robot.detect_service(request)
+        response = self.detect_service(request)
         
         result = []
         for detection in response.detected_objects:
@@ -97,5 +102,6 @@ class PointingDetecor:
 
 if __name__ == '__main__':
     rospy.init_node("pointing_detector")
-    pointer = PointingDetecor(Default())
-    pointer.excute()
+    pointer = PointingDetecor()
+    rospy.loginfo("Pointing Detector is running")
+    rospy.spin()
