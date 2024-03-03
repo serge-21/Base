@@ -5,31 +5,17 @@ import rospy
 import rosparam
 import yaml
 
-from costmap_converter.msg import ObstacleArrayMsg
-from costmap_converter.msg import ObstacleMsg
-from costmap_2d.cfg import Costmap2DConfig
-from costmap_2d.msg import VoxelGrid
-
-from nav_msgs.msg import OccupancyGrid
-from sensor_msgs.msg import Image, PointCloud2, LaserScan, PointCloud, ChannelFloat32
-from sensor_msgs import point_cloud2
-from lasr_vision_msgs.srv import YoloDetectionRequest
 from Default import Default
-
+from geometry_msgs.msg import Pose
+from sensor_msgs import point_cloud2
 from gazebo_msgs.srv import SpawnModel
-from geometry_msgs.msg import Point32, Quaternion, Vector3, Pose
-
-from visualization_msgs.msg import Marker, MarkerArray
-from shape_msgs.msg import SolidPrimitive
-from std_msgs.msg import ColorRGBA
-from interactive_markers.interactive_marker_server import InteractiveMarkerServer, InteractiveMarker, InteractiveMarkerUpdate
-from interactive_markers.menu_handler import MenuHandler
-
-
-# from arm_navigation_msgs.msg import CollisionObject
-# march 18th draft of thesis
+from nav_msgs.msg import OccupancyGrid
+from sensor_msgs.msg import Image, PointCloud2
+from lasr_vision_msgs.srv import YoloDetectionRequest
 
 '''
+# from arm_navigation_msgs.msg import CollisionObject
+# march 18th draft of thesis
 try next:
 vo_cloud
 Type: sensor_msgs/PointCloud
