@@ -3,7 +3,6 @@
 import numpy as np
 import rospy
 import rosparam
-import yaml
 
 from Default import Default
 from geometry_msgs.msg import Pose
@@ -13,19 +12,15 @@ from nav_msgs.msg import OccupancyGrid
 from sensor_msgs.msg import Image, PointCloud2
 from lasr_vision_msgs.srv import YoloDetectionRequest
 
-'''
-# from arm_navigation_msgs.msg import CollisionObject
-# march 18th draft of thesis
-try next:
-vo_cloud
-Type: sensor_msgs/PointCloud
-'''
 
 class ObjectDetected():
-    def __init__(self, cords):
+    def __init__(self, cords, xywh):
+        self.center_of_mass = None
         self.object_seg_cords = cords
-        self.object_map_cords = []
-        self.major_order_cords = []
+        self.xywh = xywh
+        self.boarder_cords = []
+        # self.object_map_cords = []
+        # self.major_order_cords = []
 
 '''
 source trust me bro, i know what im doing
@@ -34,17 +29,48 @@ class AddToCostMap():
     def __init__(self, default):
         self.robot = default
 
-    def sapwn_model(self):
+        self.execute()
+
+    def execute(self):
+        rospy.loginfo('Adding object to costmap')
+
+        result, pcl = self.get_list_of_objects_in_view()
+        self.convert_detected_object_to_map_coords(result, pcl)
+        self.calculate_boarder_cords(result)
+
+        if result:
+            for obj in result:
+                print("centre: ", obj.center_of_mass)
+                print("xywh: ", obj.xywh)
+                print("boarder: ", obj.boarder_cords)
+
+        rospy.loginfo('detected objects in view: {}'.format(len(result)))
+        
+    '''from the center of mass and the xywh cords, calculate the 4 boarder cords of the object'''
+    def calculate_boarder_cords(self, objects):
+        for obj in objects:
+            x, y, _ = obj.center_of_mass
+            _, _, w, h = obj.xywh
+
+            w = self.pixel_to_meter(w)
+            h = self.pixel_to_meter(h)
+            obj.boarder_cords = [(x - w/2, y - h/2), (x + w/2, y - h/2), (x - w/2, y + h/2), (x + w/2, y + h/2)]
+
+    def pixel_to_meter(self, pixel_length):
+        # 1 pixel = 0.0002645833 meters
+        return pixel_length * 0.0002645833
+
+    def sapwn_model(self, x, y, z):
         rospy.wait_for_service('/gazebo/spawn_sdf_model')
         try:
             spawn_model = rospy.ServiceProxy('/gazebo/spawn_sdf_model', SpawnModel)
 
             # Define the SDF of the box
-            box_sdf = """
+            box_sdf = f"""
             <?xml version="1.0"?>
             <sdf version="1.4">
             <model name="my_box">
-                <pose>1.63 -2 0 0 0</pose>
+                <pose>{x} {y} 0 0 0</pose>
 
                 <static>true</static>
                 <link name="link">
@@ -70,9 +96,9 @@ class AddToCostMap():
 
             # Define the pose of the box
             box_pose = Pose()
-            box_pose.position.x = 1.63
-            box_pose.position.y = -2
-            box_pose.position.z = 0.06
+            box_pose.position.x = x
+            box_pose.position.y = y
+            box_pose.position.z = z
 
             # Call the service to spawn the box
             response = spawn_model('my_box_26', box_sdf, '', box_pose, 'world')
@@ -83,36 +109,6 @@ class AddToCostMap():
         except rospy.ServiceException as e:
             rospy.logerr("Service call failed: %s"%e)
 
-    def add_object_to_map(self):
-        rospy.logwarn("adding object to map")
-
-        if rosparam.list_params("/mmap"):
-            rosparam.delete_param("mmap")
-
-        mmap_dict = {"vo": {"submap_0": dict()}, "numberOfSubMaps" : 1}
-
-        # open yaml file
-        with open("/home/serge/lasr_ws/src/laser-base/tasks/carry_luggage/config/vo.yaml", "r") as fp:
-            data = yaml.safe_load(fp)
-
-        rospy.logwarn("loaded yaml")
-
-        count = 0
-        for i, table in enumerate(data["tables"].keys()):
-            for j, corner in enumerate(data["tables"][table]["objects_cuboid"]):
-                vo = f"vo_00{count}"
-                mmap_dict["vo"]["submap_0"][vo] = ["submap_0", f"table{i}", *corner, 0.0]
-                count +=1
-
-        for j, corner in enumerate(data["counter"]["cuboid"]):
-            vo = f"vo_00{count}"
-            mmap_dict["vo"]["submap_0"][vo] = ["submap_0", f"counter", *corner, 0.0]
-            count +=1
-
-        rospy.logwarn("added objects to mmap")
-        rosparam.upload_params("mmap", mmap_dict)
-        rospy.logwarn("published new map")
-
     def add_objects_as_VO(self, objects):
         if rosparam.list_params("/mmap"):
             rosparam.delete_param("mmap")
@@ -121,10 +117,9 @@ class AddToCostMap():
 
         count = 0
         for obj in objects:
-            for cord in obj.object_map_cords:
-                vo = f"vo_00{count}"
-                mmap_dict["vo"]["submap_0"][vo] = ["submap_0", "obstacle", *cord, 0.0]
-                count +=1
+            vo = f"vo_00{count}"
+            mmap_dict["vo"]["submap_0"][vo] = ["submap_0", "obstacle", *obj.boarder_cords, 0.0]
+            count +=1
 
         rospy.logwarn("added objects to mmap")
         rosparam.upload_params("mmap", mmap_dict)
@@ -138,30 +133,7 @@ class AddToCostMap():
                 if 0 <= cord < len(msg.data):
                     msg.data[cord] = 99
 
-        # instead of publishing we need to configure a yaml file and upload it to the parameter server
-        # still need to figure out how to do this
-        self.local_costmap_pub.publish(msg)
-
-    def local_costmap_callback(self, msg):
-        _list, pcl = self.get_list_of_objects_in_view()
-
-        for object_detected in _list:
-            self.convert_detected_object_to_map_coords(object_detected, pcl)
-
-        width = msg.info.width
-        self.convert_map_coords_to_row_major_order(_list, width)
-
-        # add all objects to the map as obstacles using VO's
-        self.add_objects_as_VO(_list)
-        
-        # add all objects to teh map as obstacles using row major order
-        self.add_objects_as_row_major_order(_list)
-
-        # new_msg = OccupancyGrid()
-        # new_msg.header = msg.header
-        # new_msg.info = msg.info
-        # new_msg.data = [99 if i <= 260 else msg.data[i] for i in range(len(msg.data))]
-        # self.local_costmap_pub.publish(new_msg)
+        # self.local_costmap_pub.publish(msg)
 
     def get_index(self, map_width, map_height, x, y):
         adjusted_x = x + map_width
@@ -178,40 +150,46 @@ class AddToCostMap():
         request = YoloDetectionRequest()
         request.image_raw = msg                # sensor_msgs/Image
         request.dataset = "yolov8n-seg.pt"     # YOLOv8 model, auto-downloads
-        request.confidence = 0.7               # minimum confidence to include in results
+        request.confidence = 0.09               # minimum confidence to include in results
         request.nms = 0.4                      # non maximal supression
 
         # send request
         response = self.robot.detect_service(request)
         for detection in response.detected_objects:
             # cords of an object in image
-            result.append(ObjectDetected(detection.xyseg))
+            print("detected a: ", detection.name)
+            result.append(ObjectDetected(detection.xyseg, detection.xywh))
 
         self.robot.controllers.head_controller.look_straight()
         return (result, pcl)
     
-    def convert_detected_object_to_map_coords(self, object_detected, pcl):
-        # first convert the seg cords to xy cords
-        real_xy_coords = self.convert_seg_to_xy_cords(object_detected.object_seg_cords, pcl)
-        
-        # then convert the xy cords to map cords
-        map_coords = []
-        for xy_cords in real_xy_coords:
-            map_coords.append(self.robot.translate_coord_to_map(xy_cords, pcl.header))
-        
-        object_detected.object_map_cords = map_coords
+    def convert_detected_object_to_map_coords(self, objects_detected, pcl):
+        for object_detected in objects_detected:
+            cords = self.convert_seg_to_xy_cords(object_detected.object_seg_cords, pcl)
+            (x, y, _) = self.robot.translate_coord_to_map(cords, pcl.header)    
+            object_detected.center_of_mass = (x, y, 0.06)
 
     def convert_seg_to_xy_cords(self, seg_cords, pcl):
         try:
             depth_data = point_cloud2.read_points(pcl, field_names=("x", "y", "z"), skip_nans=True)
             depth_array = np.array(list(depth_data))
 
-            converted_coords = []
+            # Extract depth values for the coordinates of the person
+            depth_values_x = []
+            depth_values_y = []
+            depth_values_z = []
             for cord in seg_cords:
                 x, y, z = depth_array[cord]
-                converted_coords.append((x, y, z))
+                depth_values_x.append(x)
+                depth_values_y.append(y)
+                depth_values_z.append(z)
 
-            return converted_coords
+            # Calculate the average depth
+            average_depth_x = np.mean(depth_values_x)
+            average_depth_y = np.mean(depth_values_y)
+            average_depth_z = np.mean(depth_values_z)
+
+            return (average_depth_x, average_depth_y, average_depth_z)
         
         except Exception as e:
             rospy.logerr("Error in estimating depth: {}".format(str(e)))
@@ -231,49 +209,6 @@ class AddToCostMap():
         
             obj.major_order_cords = result
     
-    """
-    notes:
-    movebase publishes on /move_base/global_costmap/costmap & /move_base/local_costmap/costmap
-
-    the type of the message is nav_msgs/OccupancyGrid
-    msg definition
-    
-    # This represents a 2-D grid map, in which each cell represents the probability of occupancy.
-    std_msgs/Header header
-
-    # MetaData for the map
-    nav_msgs/MapMetaData info
-
-    # The map data, in row-major order, starting with (0,0).  Occupancy probabilities are in the range [0,100].  Unknown is -1.
-    int8[] data
-
-    should look something like this:
-    header:
-        seq: 0
-        stamp:
-            secs: 820
-            nsecs: 393000000
-        frame_id: "odom"
-    info:
-        map_load_time:
-            secs: 0
-            nsecs:         0
-        resolution: 0.02500000037252903
-        width: 160
-        height: 160
-        origin:
-            position:
-                x: -2.0
-                y: -1.975
-                z: 0.0
-            orientation:
-                x: 0.0
-                y: 0.0
-                z: 0.0
-                w: 1.0
-    data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...]
-    """
-
 if __name__ == '__main__':
     rospy.init_node("costmap")
     costmap = AddToCostMap(Default())
