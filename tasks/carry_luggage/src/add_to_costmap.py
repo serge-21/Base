@@ -28,6 +28,7 @@ source trust me bro, i know what im doing
 class AddToCostMap():
     def __init__(self, default):
         self.robot = default
+        self.counter = 0
 
         self.execute()
 
@@ -37,12 +38,12 @@ class AddToCostMap():
         result, pcl = self.get_list_of_objects_in_view()
         self.convert_detected_object_to_map_coords(result, pcl)
         self.calculate_boarder_cords(result)
+        self.add_objects_as_VO(result)
 
         if result:
             for obj in result:
-                print("centre: ", obj.center_of_mass)
-                print("xywh: ", obj.xywh)
-                print("boarder: ", obj.boarder_cords)
+                x, y, z = obj.center_of_mass
+                self.sapwn_model(x, y, z)
 
         rospy.loginfo('detected objects in view: {}'.format(len(result)))
         
@@ -101,9 +102,10 @@ class AddToCostMap():
             box_pose.position.z = z
 
             # Call the service to spawn the box
-            response = spawn_model('my_box_26', box_sdf, '', box_pose, 'world')
-            rospy.loginfo("Box spawned successfully: %s", response.status_message)
+            response = spawn_model(f'my_box_{self.counter}', box_sdf, '', box_pose, 'world')
+            self.counter += 1
 
+            rospy.loginfo("Box spawned successfully: %s", response.status_message)
             return response.status_message
 
         except rospy.ServiceException as e:
@@ -117,9 +119,13 @@ class AddToCostMap():
 
         count = 0
         for obj in objects:
-            vo = f"vo_00{count}"
-            mmap_dict["vo"]["submap_0"][vo] = ["submap_0", "obstacle", *obj.boarder_cords, 0.0]
-            count +=1
+            obj_counter = 0
+            for cord in obj.boarder_cords:
+                vo = f"vo_00{count}"
+                mmap_dict["vo"]["submap_0"][vo] = ["submap_0", f"obstacle_{obj_counter}", *cord, 0.0]
+                count +=1
+
+            obj_counter += 1
 
         rospy.logwarn("added objects to mmap")
         rosparam.upload_params("mmap", mmap_dict)
