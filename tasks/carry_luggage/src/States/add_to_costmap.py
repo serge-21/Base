@@ -3,8 +3,8 @@
 import numpy as np
 import rospy
 import rosparam
+import smach
 
-from Default import Default
 from geometry_msgs.msg import Pose
 from sensor_msgs import point_cloud2
 from gazebo_msgs.srv import SpawnModel
@@ -12,40 +12,37 @@ from nav_msgs.msg import OccupancyGrid
 from sensor_msgs.msg import Image, PointCloud2
 from lasr_vision_msgs.srv import YoloDetectionRequest
 
-
 class ObjectDetected():
     def __init__(self, cords, xywh):
         self.center_of_mass = None
         self.object_seg_cords = cords
         self.xywh = xywh
         self.boarder_cords = []
-        # self.object_map_cords = []
-        # self.major_order_cords = []
 
 '''
 source trust me bro, i know what im doing
 '''
-class AddToCostMap():
+class AddToCostMap(smach.State):
     def __init__(self, default):
+        smach.State.__init__(self, outcomes=['succeeded', 'failed'])
+
         self.robot = default
         self.counter = 0
 
-        self.execute()
-
-    def execute(self):
-        rospy.loginfo('Adding object to costmap')
+    def execute(self, userdata):
+        rospy.logwarn('Adding object to costmap')
 
         result, pcl = self.get_list_of_objects_in_view()
         self.convert_detected_object_to_map_coords(result, pcl)
         self.calculate_boarder_cords(result)
         self.add_objects_as_VO(result)
 
-        if result:
-            for obj in result:
-                x, y, z = obj.center_of_mass
-                self.sapwn_model(x, y, z)
+        for obj in result:
+            x, y, z = obj.center_of_mass
+            self.sapwn_model(x, y, z)
 
-        rospy.loginfo('detected objects in view: {}'.format(len(result)))
+        rospy.logwarn('detected objects in view: {}'.format(len(result)))
+        return "succeeded"
         
     '''from the center of mass and the xywh cords, calculate the 4 boarder cords of the object'''
     def calculate_boarder_cords(self, objects):
@@ -214,8 +211,3 @@ class AddToCostMap():
                     result.append(converted_row_major_order + i)
         
             obj.major_order_cords = result
-    
-if __name__ == '__main__':
-    rospy.init_node("costmap")
-    costmap = AddToCostMap(Default())
-    rospy.spin()
