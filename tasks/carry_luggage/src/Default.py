@@ -3,20 +3,23 @@
 import rospy
 from lasr_vision_msgs.srv import YoloDetection
 
-from tf_module.srv import TfTransform, TfTransformRequest
-from tiago_controllers.controllers import Controllers
 from lasr_voice.voice import Voice
+from tiago_controllers.controllers import Controllers
+from tf_module.srv import TfTransform, TfTransformRequest
+from carry_luggage.srv import PointingService
 from geometry_msgs.msg import PointStamped, Point
 from std_msgs.msg import String
 
 class Default:
     def __init__(self):
-        self.detect_service = rospy.ServiceProxy('/yolov8/detect', YoloDetection)
         self.tf_service = rospy.ServiceProxy('tf_transform', TfTransform)
+        self.detect_service = rospy.ServiceProxy('/yolov8/detect', YoloDetection)
+        self.pointing_detection_service = rospy.ServiceProxy('/pointing_detection_service', PointingService)
+        
         self.controllers = Controllers()
         self.base_controller = self.controllers.base_controller
-
         self.initial_pose = self.controllers.base_controller.get_current_pose()
+
         self.voice = Voice()
         rospy.set_param('/is_simulation', False)
         
