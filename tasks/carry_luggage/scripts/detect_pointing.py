@@ -1,43 +1,56 @@
 #!/usr/bin/env python3
 
+import os
 import cv2
+import rospkg
 import rospy
 import mediapipe as mp
+from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
-from lasr_vision_msgs.srv import YoloDetectionRequest, YoloDetectionResponse, YoloDetection
-from carry_luggage.srv import PointingService, PointingServiceResponse, PointingServiceRequest
+from lasr_vision_msgs.srv import YoloDetectionRequest, YoloDetection
+from carry_luggage.srv import PointingService, PointingServiceResponse
 
 '''using this rather than openpose because it is faster and more accurate'''
 class PointingDetecor:
     def __init__(self):
         self.detect_service = rospy.ServiceProxy('/yolov8/detect', YoloDetection)
-        self.service = rospy.Service('pointing_detection_service', PointingService, self.excute)
+        self.service = rospy.Service('/pointing_detection_service', PointingService, self.excute)
 
         # Load MediaPipe Pose model
         self.mp_pose = mp.solutions.pose
         self.pose = self.mp_pose.Pose()
 
-    def excute(self):
+    def excute(self, req):
         resp = PointingServiceResponse()
         people, img = self.detection()
 
         if people:
-            img_width = img.width
-            img_height = img.height
             for person in people:
                 keypoints = self.detect_keypoints(img)  # Detect keypoints using MediaPipe
-                direction = self.determine_pointing_direction(person, img_width, img_height, keypoints)
+                direction = self.determine_pointing_direction(keypoints)
                 print("Person detected pointing:", direction)
 
+                # Visualize pointing direction with landmarks
+                image_path = os.path.join(rospkg.RosPack().get_path('carry_luggage'), 'images', 'image.jpg')
+                self.visualize_pointing_direction_with_landmarks(image_path, person, direction, keypoints)
+
                 resp.direction = direction
+        else:
+            resp.direction = "Err"
         
-        resp.direction = "Err"
         return resp
 
     def detect_keypoints(self, img):
-        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        img_bridge = CvBridge().imgmsg_to_cv2(img, desired_encoding="passthrough")
+        img_rgb = cv2.cvtColor(img_bridge, cv2.COLOR_BGR2RGB)
+
+        # store the image
+        package_path = rospkg.RosPack().get_path('carry_luggage')
+        os.chdir(os.path.abspath(os.path.join(package_path, 'images')))
+        cv2.imwrite("image.jpg", img_rgb)
+
         results = self.pose.process(img_rgb)
-        
+
         keypoints = []
         if results.pose_landmarks:
             for landmark in results.pose_landmarks.landmark:
@@ -63,15 +76,11 @@ class PointingDetecor:
         for detection in response.detected_objects:
             if detection.name == "person":
                 # cords of person in image
-                result.appent(detection.xywh)
+                result.append(detection.xywh)
 
         return result, msg
 
-    def determine_pointing_direction(self, person_bbox, img_width, img_height, keypoints):
-        x, y, w, h = person_bbox
-        # Calculate the center of the person's bounding box
-        center_x = x + w // 2
-        
+    def determine_pointing_direction(self, keypoints, buffer_width=50):
         # Ensure keypoints are available
         if len(keypoints) >= 7:  # Ensure we have at least 7 keypoints for the upper body
             # Extract relevant keypoints for shoulders and wrists
@@ -87,18 +96,48 @@ class PointingDetecor:
                 right_diff = right_shoulder[0] - right_wrist[0]
                 
                 # Determine pointing direction based on the difference in x-coordinates
-                if left_diff > right_diff:
-                    return "Left"
-                elif right_diff > left_diff:
-                    return "Right"
-        
+                if abs(left_diff - right_diff) < buffer_width:
+                    return "Front"
+                elif abs(left_diff) > buffer_width and abs(left_diff) > abs(right_diff):
+                    return "Left" if left_diff > 0 else "Right"
+                elif abs(right_diff) > buffer_width and abs(right_diff) > abs(left_diff):
+                    return "Right" if right_diff > 0 else "Left"
+                
         # Default: Determine direction based on the relative position to the center of the image
-        if center_x < img_width // 3:
-            return "Left"
-        elif center_x > 2 * img_width // 3:
-            return "Right"
+        return "Front"
+        
+    def visualize_pointing_direction_with_landmarks(self, image_path, person_bbox, pointing_direction, keypoints):
+        # Load image
+        img = cv2.imread(image_path)
+        
+        # Extract person bbox coordinates
+        x, y, w, h = person_bbox
+        # Calculate center of bbox
+        center_x = x + w // 2
+        center_y = y + h // 2
+        
+        # Calculate endpoint of arrow based on pointing direction
+        arrow_length = min(w, h) // 2
+        if pointing_direction == "Left":
+            endpoint = (center_x - arrow_length, center_y)
+        elif pointing_direction == "Right":
+            endpoint = (center_x + arrow_length, center_y)
         else:
-            return "Front"
+            endpoint = (center_x, center_y)
+        
+        # Draw arrow on image
+        color = (0, 255, 0)  # Green color
+        thickness = 2
+        cv2.arrowedLine(img, (center_x, center_y), endpoint, color, thickness)
+        
+        # Draw landmarks (keypoints) on the image
+        for keypoint in keypoints:
+            if keypoint:
+                cv2.circle(img, keypoint, 3, (0, 0, 255), -1)  # Red color for landmarks
+        
+        # Store image with pointing direction visualization and landmarks
+        output_image_path = "output_image_with_landmarks.jpg"  # Change the output image path as needed
+        cv2.imwrite(output_image_path, img)
 
 if __name__ == '__main__':
     rospy.init_node("pointing_detector")
