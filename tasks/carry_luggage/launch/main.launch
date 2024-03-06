@@ -4,6 +4,7 @@
     <node pkg="tf_module" name="tf_transforms_base" type="tf_transforms_base.py" required="true"/>
     <node pkg="lasr_vision_yolov8" name="service" type="service" output="screen"/>
     <node pkg="carry_luggage" name="detect_pointing" type="detect_pointing.py" output="screen"/>
-    <node pkg="carry_luggage" name="go_to_person" type="main.py" output="screen"/>
+    <!-- <node pkg="carry_luggage" name="go_to_person" type="main.py" output="screen"/> -->
+    <!-- <include file="$(find carry_luggage)/launch/sim.launch"/> -->
 
 </launch>
