@@ -20,7 +20,7 @@ class CarryLuggage(smach.StateMachine):
         self.robot = Default()
 
         with self:
-            smach.StateMachine.add('DETECT_POINTING_DIRECTION', DetectPointingDirection(self.robot), transitions={'Left' : 'LOOK_FOR_PERSON', 'Right': 'LOOK_FOR_PERSON', 'failed' : 'DETECT_POINTING_DIRECTION'})
+            smach.StateMachine.add('DETECT_POINTING_DIRECTION', DetectPointingDirection(self.robot), transitions={'Left' : 'succeeded', 'Right': 'succeeded', 'failed' : 'DETECT_POINTING_DIRECTION'})
             # smach.StateMachine.add('LOOK_FOR_PERSON', LookForPeople(self.robot), transitions={'succeeded' : 'GO_TO_PERSON', 'failed' : 'failed'})
             # smach.StateMachine.add('GO_TO_PERSON', GoToPerson(self.robot), transitions={'succeeded' : 'LOOK_FOR_PERSON',  'failed' : 'failed'})
             # smach.StateMachine.add('ADD_TO_COSTMAP', AddToCostMap(self.robot), transitions={'succeeded' : 'succeeded', 'failed' : 'failed'})
