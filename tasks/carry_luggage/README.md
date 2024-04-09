@@ -72,7 +72,7 @@ As mentioned in the contributions guideline, working in forks is required for no
 2. Create a fork. The owner should be you, and you may want to uncheck "copy the main branch only".
 3. Clone your fork:
 ```bash
-git clone git@github.com:<username>/Base.git ~/catkin_ws/src/lasr-base
+git clone git@github.com:<username>/Base.git ~/lasr_ws/src/lasr-base
 ```
 ### Maintaining your Fork
 1. Check the current remotes
