@@ -105,7 +105,7 @@ You can also keep your branches synced through the GitHub web interface, through
 The repository ships many packages, which must be built as described above. You should now rebuild your workspace, and ensure that all packages build correctly. If you run into issues here, it is likely that you have failed to setup your environment correctly.
 
 ### Run The Code
-Assuming the setup has been followed correctly, download the code and place it inside
+Assuming the setup has been followed correctly, place this code inside
 `lasr_ws/src/laser-base/tasks` and run the following commands:
 ```bash
 robocup
