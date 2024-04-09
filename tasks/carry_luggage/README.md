@@ -114,4 +114,4 @@ catkin build   # this will take a lot of time (approx 18 minutes)
 source devel/setup.bash
 roslaunch carry luggage main.launch
 ```
-This should launch a simulation with the robot ready to execute the state machine.
+This should launch a simulation with the robot ready to detect pointing. Please adjust the simulation in gazebo to suit your needs.
