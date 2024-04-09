@@ -16,6 +16,8 @@ class Default:
         self.detect_service = rospy.ServiceProxy('/yolov8/detect', YoloDetection)
         self.pointing_detection_service = rospy.ServiceProxy('/pointing_detection_service', PointingService)
         
+        rospy.wait_for_service('/yolov8/detect')
+        rospy.wait_for_service('/pointing_detection_service')
         self.controllers = Controllers()
         self.base_controller = self.controllers.base_controller
         self.initial_pose = self.controllers.base_controller.get_current_pose()
