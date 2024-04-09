@@ -5,7 +5,7 @@ This `README.md` will get you setup with the LASR container and codebase, and ge
 
 ## Important
 - This code will not run outside of the LASR container and the LASR work space.
-- This code will not work on any OS other than Ubuntu 20.04.
+- This code will not work on any OS other than Ubuntu 20.04 you can either install it using WSL or natively.
 
 ## Objectives
 - Setup the LASR container and your workspace.
