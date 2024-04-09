@@ -3,6 +3,10 @@
 ## Overview
 This `README.md` will get you setup with the LASR container and codebase, and get you ready to contribute!
 
+## Important
+- This code will not run outside of the LASR container and the LASR work space.
+- This code will not work on any OS other than Ubuntu 20.04.
+
 ## Objectives
 - Setup the LASR container and your workspace.
 - Create a fork of the repository.
